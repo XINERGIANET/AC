@@ -32,6 +32,11 @@ class QuotaController extends Controller
                     return $q->where('credit_manager_id', $user->id);
                 });
             })
+            ->when($request->credit_manager_id, function ($query, $creditManagerId) {
+                return $query->whereHas('contract.seller', function ($q) use ($creditManagerId) {
+                    return $q->where('credit_manager_id', $creditManagerId);
+                });
+            })
             ->when($request->name, function ($query, $name) {
                 return $query->whereHas('contract', function ($q) use ($name) {
                     return $q->where(function ($q) use ($name) {
@@ -64,14 +69,19 @@ class QuotaController extends Controller
             ->latest('id')
             ->paginate(20);
 
+        $credit_managers = User::where('role', 'credit_manager')->active()->get();
+
         $sellers = User::seller()->where('state', 0)->active()
             ->when($user->hasRole('credit_manager'), function ($query) use ($user) {
                 return $query->where('credit_manager_id', $user->id);
             })
+            ->when($request->credit_manager_id, function ($query, $creditManagerId) {
+                return $query->where('credit_manager_id', $creditManagerId);
+            })
             ->orderBy('name', 'asc')
             ->get();
 
-        return view('quotas.index', compact('quotas', 'sellers', 'selectedClient'));
+        return view('quotas.index', compact('quotas', 'sellers', 'credit_managers', 'selectedClient'));
     }
 
     public function excel(Request $request)
@@ -95,6 +105,11 @@ class QuotaController extends Controller
             ->when($user->hasRole('credit_manager'), function ($query) use ($user) {
                 return $query->whereHas('seller', function ($q) use ($user) {
                     $q->where('credit_manager_id', $user->id);
+                });
+            })
+            ->when($request->credit_manager_id, function ($query, $creditManagerId) {
+                return $query->whereHas('seller', function ($q) use ($creditManagerId) {
+                    $q->where('credit_manager_id', $creditManagerId);
                 });
             })
             ->where(function ($query) use ($q) {

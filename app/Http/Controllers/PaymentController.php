@@ -260,6 +260,8 @@ class PaymentController extends Controller
             $payment_methods = PaymentMethod::active()->get();
         }
 
+        $credit_managers = User::where('role', 'credit_manager')->active()->get();
+
         $sellers = User::seller()->where('state', 0)->active()
             ->when($user->hasRole('credit_manager'), function ($query) use ($user) {
                 return $query->where('credit_manager_id', $user->id);
@@ -269,7 +271,7 @@ class PaymentController extends Controller
         $day = now()->format('N'); // 1-5
         $hour = now()->format('G'); // 7 - 20
 
-        return view('payments.index', compact('payments', 'payment_methods', 'sellers', 'day', 'hour', 'total'));
+        return view('payments.index', compact('payments', 'payment_methods', 'sellers', 'credit_managers', 'day', 'hour', 'total'));
     }
 
     public function charges(Request $request)

@@ -1,4 +1,4 @@
-@extends('template.app')
+﻿@extends('template.app')
 
 @section('title', 'Contratos')
 
@@ -117,9 +117,9 @@
                                             <div class="dropdown-menu">
                                                 @if($contract->client_type == 'Personal')
                                                 <a class="dropdown-item" href="{{ route('contracts.pdf1', $contract) }}"
-                                                    target="_blank">CONTRATO DE PRÉSTAMO PERSONAL</a>
+                                                    target="_blank">CONTRATO DE PRÉSTAMO PERSONAL</a>
                                                 <a class="dropdown-item" href="{{ route('contracts.pdf2', $contract) }}"
-                                                    target="_blank">CONTRATO DE PRÉSTAMO PERSONAL CON AVAL</a>
+                                                    target="_blank">CONTRATO DE PRÉSTAMO PERSONAL CON AVAL</a>
                                                 @endif
                                                 @if ($contract->client_type == 'Grupo')
                                                 <a class="dropdown-item" href="{{ route('contracts.pdf3', $contract) }}"
@@ -307,8 +307,7 @@
                                         <div class="input-group">
                                             <input type="text" class="form-control ts-document" name="documents[]"
                                                 autocomplete="off">
-                                            <button type="button" class="btn btn-primary btn-icon"
-                                                id="btn-group-search">
+                                            <button type="button" class="btn btn-primary btn-icon btn-group-search">
                                                 <i class="ti ti-search icon"></i>
                                             </button>
                                         </div>
@@ -342,8 +341,7 @@
                                         <div class="input-group">
                                             <input type="text" class="form-control ts-document" name="documents[]"
                                                 autocomplete="off">
-                                            <button type="button" class="btn btn-primary btn-icon"
-                                                id="btn-group-search">
+                                            <button type="button" class="btn btn-primary btn-icon btn-group-search">
                                                 <i class="ti ti-search icon"></i>
                                             </button>
                                         </div>
@@ -483,7 +481,7 @@
             <div class="modal-content">
                 <form id="numberForm" method="POST">
                     <div class="modal-header">
-                        <h5 class="modal-title">Editar número de pagaré</h5>
+                        <h5 class="modal-title">Editar Número de pagaré</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
@@ -708,7 +706,11 @@
             }
 
             // inicializar TomSelect en los inputs existentes
-            $('.ts-document').each(function() {
+            $('.ts-document, #divGroup input[name="documents[]"]').each(function() {
+                initTomSelect($(this));
+            });
+            window.initContractDocumentSelect = initTomSelect;
+            $(document).on('focus', '#divGroup input[name="documents[]"]', function() {
                 initTomSelect($(this));
             });
 
@@ -812,7 +814,7 @@
             })
         });
 
-        $(document).on('click', '#btn-group-search', function() {
+        $(document).on('click', '.btn-group-search, #btn-group-search', function() {
             var $row = $(this).closest('.row');
             var $dniInput = $row.find('input[name="documents[]"]');
             var $nameInput = $row.find('input[name="names[]"]');
@@ -1057,40 +1059,30 @@
         });
 
         $('#btn-add').click(function() {
-            var html = `
-			<div class="row">
-				<div class="col-lg-2">
-					<div class="mb-3">
-						<label class="form-label required">DNI</label>
-						<div class="input-group">
-							<input type="text" class="form-control" name="documents[]" autocomplete="off">
-							<button type="button" class="btn btn-primary btn-icon" id="btn-group-search">
-								<i class="ti ti-search icon"></i>
-							</button>
-						</div>
-					</div>
-				</div>
-				<div class="col-lg-4">
-					<div class="mb-3">
-						<label class="form-label required">Nombre</label>
-						<input type="text" class="form-control" name="names[]" autocomplete="off">
-					</div>
-				</div>
-				<div class="col-lg-4">
-					<div class="mb-3">
-						<label class="form-label required">Dirección</label>
-						<input type="text" class="form-control" name="addresses[]" autocomplete="off">
-					</div>
-				</div>
-                <div class="col-lg-2">
-					<div class="mb-3">
-						<label class="form-label required">S/. Cuota</label>
-						<input type="text" class="form-control" name="quotas[]" autocomplete="off">
-					</div>
-				</div>
-			</div>
-		`;
-            $('#divGroup').append(html);
+            var $baseRow = $('#divGroup .row').first();
+            if (!$baseRow.length) return;
+
+            var $newRow = $baseRow.clone(false, false);
+            $newRow.find('.ts-wrapper').remove();
+            $newRow.find('input[name="documents[]"], input[name="names[]"], input[name="addresses[]"], input[name="quotas[]"]').each(function() {
+                $(this).val('').removeAttr('readonly');
+            });
+
+            var $dniInput = $newRow.find('input[name="documents[]"]').first();
+            $dniInput
+                .removeClass('tomselected ts-hidden-accessible')
+                .addClass('ts-document')
+                .removeAttr('id tabindex hidden')
+                .removeData('ts-initialized');
+
+            $newRow.find('.btn-group-search, #btn-group-search').removeAttr('id').addClass('btn-group-search');
+
+            $('#divGroup').append($newRow);
+
+            var $newInput = $('#divGroup .row').last().find('input[name="documents[]"]').first();
+            if (window.initContractDocumentSelect) {
+                window.initContractDocumentSelect($newInput);
+            }
         });
 
         $('#btn-remove').click(function() {
@@ -1164,7 +1156,7 @@
             var id = $('#numberContractId').val();
             var number = $('#numberPagare').val();
             if (!number) {
-                ToastError.fire({ text: 'Ingresse un número' });
+                ToastError.fire({ text: 'Ingresse un Número' });
                 return;
             }
 
@@ -1193,3 +1185,6 @@
         });
     </script>
 @endsection
+
+
+

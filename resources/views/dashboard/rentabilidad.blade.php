@@ -187,11 +187,9 @@
                                 <h5 class="card-title">
                                     Pago puntual
                                 </h5>
-                                <span
-                                    class="d-block fs-1 text-center fw-semibold text-center">{{ ($today_projected_people ?? 0) > 0
-                                        ? number_format((($today_advance_payments_people ?? 0) + ($today_timely_payments_people ?? 0)) / ($today_projected_people ?? 1) * 100, 2).'%' 
-                                        : '0%' }}
-                                    </span>
+                                      <span class="d-block fs-1 text-center fw-semibold text-center">
+                                    {{ number_format($today_punctual_percent ?? 0, 2) . '%' }}
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -399,10 +397,10 @@
                     return `
                         <tr>
                             <td>${escapeHtml(item.client)}</td>
-                            <td>${escapeHtml(item.person_name || '')}</td>
                             <td>${escapeHtml(item.quota_number || '')}</td>
                             <td>S/${parseFloat(item.amount || 0).toFixed(2)}</td>
                             <td>${escapeHtml(item.payment_method || '')}</td>
+                            <td>${escapeHtml(item.quota_date || '')}</td>
                             <td>${escapeHtml(item.payment_date || '')}</td>
                             <td>${escapeHtml(item.due_days)}</td>
                         </tr>
@@ -416,10 +414,10 @@
                 $('#rentabilidadCardTableHead').html(`
                     <tr>
                         <th>Cliente</th>
-                        <th>Persona</th>
                         <th>Cuota</th>
                         <th>Monto</th>
                         <th>Método</th>
+                        <th>Fecha cuota</th>
                         <th>Fecha pago</th>
                         <th>Mora</th>
                     </tr>
@@ -433,11 +431,11 @@
                     return `
                         <tr>
                             <td>${escapeHtml(item.client)}</td>
-                            <td>${escapeHtml(item.person_name || '')}</td>
                             <td>${escapeHtml(item.quota_number || '')}</td>
                             <td>S/${parseFloat(item.amount || 0).toFixed(2)}</td>
                             <td>S/${parseFloat(item.debt || 0).toFixed(2)}</td>
                             <td>${escapeHtml(item.due_date || '')}</td>
+                            <td>${escapeHtml(item.payment_date || '')}</td>
                             <td>${status}</td>
                         </tr>
                     `;
@@ -450,11 +448,11 @@
                 $('#rentabilidadCardTableHead').html(`
                     <tr>
                         <th>Cliente</th>
-                        <th>Persona</th>
                         <th>Cuota</th>
                         <th>Monto</th>
                         <th>Deuda</th>
                         <th>Fecha cuota</th>
+                        <th>Fecha pago</th>
                         <th>Estado</th>
                     </tr>
                 `);
@@ -519,3 +517,11 @@
         })();
     </script>
 @endsection
+
+
+
+
+
+
+
+

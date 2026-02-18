@@ -37,10 +37,26 @@
                 @if (request()->rentabilidad_card)
                     <input type="hidden" name="rentabilidad_card" value="{{ request()->rentabilidad_card }}">
                 @endif
-                @if (request()->credit_manager_id)
-                    <input type="hidden" name="credit_manager_id" value="{{ request()->credit_manager_id }}">
-                @endif
                 <div class="row">
+                    @if (auth()->user()->hasRole('admin') ||
+                            auth()->user()->hasRole('credit') ||
+                            auth()->user()->hasRole('operations') ||
+                            auth()->user()->hasRole('admin_credit'))
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Jefe de Crédito</label>
+                                <select class="form-select" name="credit_manager_id">
+                                    <option value="">Seleccionar</option>
+                                    @foreach ($credit_managers as $cm)
+                                        <option value="{{ $cm->id }}"
+                                            @if ($cm->id == request()->credit_manager_id) selected @endif>
+                                            {{ $cm->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    @endif
                     @if (auth()->user()->hasRole('admin') ||
                             auth()->user()->hasRole('credit') ||
                             auth()->user()->hasRole('operations') ||

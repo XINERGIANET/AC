@@ -22,6 +22,25 @@
         <div class="card-body border-bottom">
             <form>
                 <div class="row">
+                    @if (auth()->user()->hasRole('admin') ||
+                            auth()->user()->hasRole('credit') ||
+                            auth()->user()->hasRole('operations') ||
+                            auth()->user()->hasRole('admin_credit'))
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Jefe de Crédito</label>
+                                <select class="form-select" name="credit_manager_id">
+                                    <option value="">Seleccionar</option>
+                                    @foreach ($credit_managers as $cm)
+                                        <option value="{{ $cm->id }}"
+                                            @if ($cm->id == request()->credit_manager_id) selected @endif>
+                                            {{ $cm->name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                    @endif
                     <div class="col-md-5">
                         <div class="mb-5">
                             <label class="form-label">Cliente</label>
@@ -210,8 +229,9 @@
                     if (!query || query.length < 2) {
                         return callback([]);
                     }
+                    var cmId = $('select[name="credit_manager_id"]').val() || '';
                     $.ajax({
-                        url: '{{ route('quotas.clients') }}?q=' + encodeURIComponent(query),
+                        url: '{{ route('quotas.clients') }}?q=' + encodeURIComponent(query) + '&credit_manager_id=' + encodeURIComponent(cmId),
                         method: 'GET',
                         success: function(data) {
                             callback(data.items || []);
