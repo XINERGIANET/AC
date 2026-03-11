@@ -369,7 +369,7 @@
 
                 $cm.on('change', filterSellers);
                 // inicializar según el valor actual (request())
-                filterSellers();
+                filterSellers();    
             });
         });
     </script>
@@ -423,6 +423,7 @@
                     </tr>
                 `);
                 $('#rentabilidadCardTableBody').html(rows);
+
             }
 
             function renderQuotas(items) {
@@ -486,13 +487,14 @@
                             return;
                         }
 
-                        $('#rentabilidadCardTotal').text(data.total || 0);
+                        $('#rentabilidadCardTotal').text(data.total || (data.items && data.items.length) || 0);
 
                         if (data.type === 'quotas') {
                             renderQuotas(data.items || []);
                         } else {
                             renderPayments(data.items || []);
                         }
+                        console.log(data);
                     },
                     error: function() {
                         $('#rentabilidadCardTableBody').html(
