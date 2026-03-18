@@ -319,10 +319,17 @@
                                         <input type="text" class="form-control" name="names[]" autocomplete="off">
                                     </div>
                                 </div>
-                                <div class="col-lg-4">
+                                <div class="col-lg-2">
                                     <div class="mb-3">
                                         <label class="form-label required">Dirección</label>
                                         <input type="text" class="form-control" name="addresses[]"
+                                            autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="col-lg-2">
+                                    <div class="mb-3">
+                                        <label class="form-label required">Teléfono</label>
+                                        <input type="text" class="form-control ts-phone" name="phones[]"
                                             autocomplete="off">
                                     </div>
                                 </div>
@@ -353,10 +360,17 @@
                                         <input type="text" class="form-control" name="names[]" autocomplete="off">
                                     </div>
                                 </div>
-                                <div class="col-lg-4">
+                                <div class="col-lg-2">
                                     <div class="mb-3">
                                         <label class="form-label required">Dirección</label>
                                         <input type="text" class="form-control" name="addresses[]"
+                                            autocomplete="off">
+                                    </div>
+                                </div>
+                                <div class="col-lg-2">
+                                    <div class="mb-3">
+                                        <label class="form-label required">Teléfono</label>
+                                        <input type="text" class="form-control ts-phone" name="phones[]"
                                             autocomplete="off">
                                     </div>
                                 </div>

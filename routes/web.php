@@ -43,10 +43,11 @@ Route::middleware('auth')->group(function () {
 	Route::get('clients/quotas', [ClientController::class, 'quotas'])->name('clients.quotas');
 	Route::get('clients/contracts', [ClientController::class, 'contracts'])->name('clients.contracts');
 	Route::get('clients/details', [ClientController::class, 'details'])->name('clients.details');
+	Route::get('clients/edit', [ClientController::class, 'edit'])->name('clients.edit');
 	Route::get('clients/check', [ClientController::class, 'check'])->name('clients.check');
 	Route::get('clients/api', [ClientController::class, 'api'])->name('clients.api');
 	Route::get('clients', [ClientController::class, 'index'])->name('clients.index');
-
+	Route::put('clients/update-person', [ClientController::class, 'updatePerson'])->name('clients.update-person');
 	Route::get('contracts/api', [ContractController::class, 'api'])->name('contracts.api');
 	Route::get('contracts/ending', [ContractController::class, 'ending'])->name('contracts.ending');
 	Route::get('contracts/ending/excel', [ContractController::class, 'endingExcel'])->name('contracts.ending.excel');
