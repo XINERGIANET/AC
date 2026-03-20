@@ -710,6 +710,9 @@ class WebController extends Controller
             ->when($request->end_date_1, function ($query, $end_date) {
                 return $query->whereDate('date', '<=', $end_date);
             })
+            ->whereHas('quota', function ($q) {
+                return $q->where('paid', 1);
+            })
             ->when($request->credit_manager_id, function ($query, $cm_id) {
                 return $query->whereHas('quota.contract.seller', function ($q) use ($cm_id) {
                     return $q->where('credit_manager_id', $cm_id);
@@ -737,6 +740,9 @@ class WebController extends Controller
             ->when($request->end_date_1, function ($query, $end_date) {
                 return $query->whereDate('date', '<=', $end_date);
             })
+            ->whereHas('quota', function ($q) {
+                return $q->where('paid', 1);
+            })
             ->when($request->credit_manager_id, function ($query, $cm_id) {
                 return $query->whereHas('quota.contract.seller', function ($q) use ($cm_id) {
                     return $q->where('credit_manager_id', $cm_id);
@@ -760,6 +766,9 @@ class WebController extends Controller
                 return $query->whereHas('quota', function ($q) use ($end_date) {
                     return $q->whereDate('date', '<=', $end_date);
                 });
+            })
+            ->whereHas('quota', function ($q) {
+                return $q->where('paid', 1);
             })
             ->when($request->credit_manager_id, function ($query, $cm_id) {
                 return $query->whereHas('quota.contract.seller', function ($q) use ($cm_id) {
@@ -1141,6 +1150,9 @@ class WebController extends Controller
                         return $q->whereDate('date', '<=', $endDate);
                     });
                 })
+                ->whereHas('quota', function ($q) {
+                    return $q->where('paid', 1);
+                })
                 ->when($creditManagerId, function ($query) use ($creditManagerId) {
                     return $query->whereHas('quota.contract.seller', function ($q) use ($creditManagerId) {
                         return $q->where('credit_manager_id', $creditManagerId);
@@ -1210,6 +1222,9 @@ class WebController extends Controller
                 })
                 ->when($endDate, function ($query) use ($endDate) {
                     return $query->whereDate('date', '<=', $endDate);
+                })
+                ->whereHas('quota', function ($q) {
+                    return $q->where('paid', 1);
                 })
                 ->when($creditManagerId, function ($query) use ($creditManagerId) {
                     return $query->whereHas('quota.contract.seller', function ($q) use ($creditManagerId) {

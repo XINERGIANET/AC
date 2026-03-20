@@ -322,7 +322,8 @@ class PaymentController extends Controller
             })
             ->get();
 
-        $date = $request->date ? $request->date : now();
+        $date = $request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString();
+        $referenceDate = Carbon::parse($date);
 
         $quotas = Quota::active()
             ->when($user->hasRole('seller'), function ($query) use ($user) {
@@ -343,13 +344,13 @@ class PaymentController extends Controller
                 return $query->whereHas('contract', function ($query) use ($seller_id) {
                     return $query->where('seller_id', $seller_id);
                 });
-            })->when($request->from_days, function ($query, $from_days) {
-                return $query->whereRaw('DATEDIFF(?, date) >= ?', [now()->format('Y-m-d'), $from_days]);
-            })->when($request->to_days, function ($query, $to_days) {
-                return $query->whereRaw('DATEDIFF(?, date) <= ?', [now()->format('Y-m-d'), $to_days]);
+            })->when($request->from_days, function ($query, $from_days) use ($date) {
+                return $query->whereRaw('DATEDIFF(?, date) >= ?', [$date, $from_days]);
+            })->when($request->to_days, function ($query, $to_days) use ($date) {
+                return $query->whereRaw('DATEDIFF(?, date) <= ?', [$date, $to_days]);
             })->whereDate('date', '<', $date)->where('paid', 0)->paginate(20);
 
-        return view('payments.dues', compact('quotas', 'sellers'));
+        return view('payments.dues', compact('quotas', 'sellers', 'referenceDate'));
     }
 
     public function store(Request $request)

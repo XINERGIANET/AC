@@ -15,7 +15,12 @@ class ClientController extends Controller
         $clients = Contract::active()->when($user->hasRole('seller'), function($query) use($user){
             return $query->where('seller_id', $user->id);
         })->when($request->name, function($query, $name){
-            return $query->where('name', 'like', '%'.$name.'%');
+            return $query->where(function($query) use ($name){
+                return $query->where('name', 'like', '%'.$name.'%')
+                    ->orWhere('group_name', 'like', '%'.$name.'%')
+                    ->orWhere('document', 'like', '%'.$name.'%')
+                    ->orWhere('people', 'like', '%'.$name.'%');
+            });
         })->when($request->seller_id, function($query, $seller_id){
             return $query->where('seller_id', $seller_id);
         })->when($request->start_date, function($query, $start_date){

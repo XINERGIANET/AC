@@ -3,6 +3,7 @@
 namespace App\Exports;
 
 use App\Models\Quota;
+use Carbon\Carbon;
 
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -21,7 +22,8 @@ class DuesExport implements FromCollection, WithHeadings, WithMapping, WithStyle
     {
         $user = auth()->user();
         $request = request();
-        // Export only overdue quotas (mora): unpaid and date < today
+        $referenceDate = $request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString();
+
         $quotas = Quota::active()->when($user->hasRole('seller'), function($query) use($user){
             return $query->whereHas('contract', function($query) use($user){
                 return $query->where('seller_id', $user->id);
@@ -36,12 +38,12 @@ class DuesExport implements FromCollection, WithHeadings, WithMapping, WithStyle
             return $query->whereHas('contract', function($query) use($seller_id){
                 return $query->where('seller_id', $seller_id);
             });
-        })->when($request->start_date, function($query, $start_date){
-            return $query->whereDate('date', '>=', $start_date);
-        })->when($request->end_date, function($query, $end_date){
-            return $query->whereDate('date', '<=', $end_date);
+        })->when($request->from_days, function($query, $from_days) use ($referenceDate){
+            return $query->whereRaw('DATEDIFF(?, date) >= ?', [$referenceDate, $from_days]);
+        })->when($request->to_days, function($query, $to_days) use ($referenceDate){
+            return $query->whereRaw('DATEDIFF(?, date) <= ?', [$referenceDate, $to_days]);
         })->where('paid', 0)
-          ->whereDate('date', '<', now()->toDateString())
+          ->whereDate('date', '<', $referenceDate)
           ->orderBy('date')->get();
 
         return $quotas;
@@ -50,6 +52,8 @@ class DuesExport implements FromCollection, WithHeadings, WithMapping, WithStyle
 
     public function map($quota): array
     {
+        $request = request();
+        $refDate = $request->date ? Carbon::parse($request->date) : now();
         return [
             optional(optional($quota->contract)->seller)->name,
             optional($quota->contract)->client(),
@@ -57,7 +61,7 @@ class DuesExport implements FromCollection, WithHeadings, WithMapping, WithStyle
             $quota->amount,
             $quota->debt,
             $quota->date->format('d/m/Y'),
-            ($quota->date->lt(now()) ? now()->diffInDays($quota->date) : 0)
+            ($quota->date->lt($refDate) ? $refDate->diffInDays($quota->date) : 0)
         ];
     }
 

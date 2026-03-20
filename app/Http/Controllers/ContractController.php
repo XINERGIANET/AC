@@ -31,7 +31,10 @@ class ContractController extends Controller
             })
             ->when($request->name, function ($query, $name) {
                 return $query->where(function ($query) use ($name) {
-                    return $query->where('name', 'like', '%' . $name . '%')->orWhere('group_name', 'like', '%' . $name . '%');
+                    return $query->where('name', 'like', '%' . $name . '%')
+                        ->orWhere('group_name', 'like', '%' . $name . '%')
+                        ->orWhere('document', 'like', '%' . $name . '%')
+                        ->orWhere('people', 'like', '%' . $name . '%');
                 });
             })->when($request->seller_id, function ($query, $seller_id) {
                 return $query->where('seller_id', $seller_id);
@@ -69,7 +72,10 @@ class ContractController extends Controller
             })
             ->when($request->name, function ($query, $name) {
                 return $query->where(function ($query) use ($name) {
-                    return $query->where('name', 'like', '%' . $name . '%')->orWhere('group_name', 'like', '%' . $name . '%');
+                    return $query->where('name', 'like', '%' . $name . '%')
+                        ->orWhere('group_name', 'like', '%' . $name . '%')
+                        ->orWhere('document', 'like', '%' . $name . '%')
+                        ->orWhere('people', 'like', '%' . $name . '%');
                 });
             })->when($request->seller_id, function ($query, $seller_id) {
                 return $query->where('seller_id', $seller_id);
