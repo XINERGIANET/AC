@@ -236,6 +236,7 @@ class ContractController extends Controller
                         'name' => $request->names[$i],
                         'address' => $request->addresses[$i],
                         'quotes' => $request->quotas[$i],
+                        'phone' => $request->phones[$i],
                     ];
                 }
 
