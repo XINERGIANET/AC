@@ -275,17 +275,14 @@ class PaymentController extends Controller
         return view('payments.index', compact('payments', 'payment_methods', 'sellers', 'credit_managers', 'day', 'hour', 'total'));
     }
 
-    public function charges(Request $request)
+    /**
+     * Consulta base de Gestión de cobranza (lista, total y Excel deben usar la misma lógica).
+     */
+    private function chargesQuotasBaseQuery(Request $request)
     {
         $user = auth()->user();
-        $credit_managers = User::where('role', 'credit_manager')->active()->get();
-        $sellers = User::seller()->active()
-            ->when($user->hasRole('credit_manager'), function ($query) use ($user) {
-                return $query->where('credit_manager_id', $user->id);
-            })
-            ->get();
 
-        $quotasQuery = Quota::active()
+        return Quota::active()
             ->when($user->hasRole('seller'), function ($query) use ($user) {
                 return $query->whereHas('contract', function ($query) use ($user) {
                     return $query->where('seller_id', $user->id);
@@ -323,6 +320,19 @@ class PaymentController extends Controller
                 });
             })
             ->where('paid', 0);
+    }
+
+    public function charges(Request $request)
+    {
+        $user = auth()->user();
+        $credit_managers = User::where('role', 'credit_manager')->active()->get();
+        $sellers = User::seller()->active()
+            ->when($user->hasRole('credit_manager'), function ($query) use ($user) {
+                return $query->where('credit_manager_id', $user->id);
+            })
+            ->get();
+
+        $quotasQuery = $this->chargesQuotasBaseQuery($request);
 
         // Total de saldo pendiente con los mismos filtros (todas las páginas)
         $total = (clone $quotasQuery)->sum('debt');
@@ -981,7 +991,8 @@ class PaymentController extends Controller
     public function chargesExcel(Request $request)
     {
         $name = "GestionDeCobranza_" . now()->format('d_m_Y') . ".xlsx";
-        return Excel::download(new ChargesExport, $name);
+
+        return Excel::download(new ChargesExport($this->chargesQuotasBaseQuery($request)), $name);
     }
 
     public function duesExcel(Request $request)
