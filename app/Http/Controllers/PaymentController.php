@@ -342,19 +342,19 @@ class PaymentController extends Controller
         return view('payments.charges', compact('quotas', 'sellers', 'credit_managers', 'total'));
     }
 
-    public function dues(Request $request)
+    /**
+     * Consulta base de Gestión de mora (vista, total y Excel usan la misma lógica).
+     * Join con contracts para ordenar por number_pagare; se prefixa columnas ambiguas.
+     */
+    private function duesQuotasBaseQuery(Request $request, string $date = null)
     {
-        $user = auth()->user();
-        $sellers = User::seller()->active()
-            ->when($user->hasRole('credit_manager'), function ($query) use ($user) {
-                return $query->where('credit_manager_id', $user->id);
-            })
-            ->get();
+        $user  = auth()->user();
+        $date  = $date ?? ($request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString());
 
-        $date = $request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString();
-        $referenceDate = Carbon::parse($date);
-
-        $quotas = Quota::active()
+        return Quota::active()
+            ->join('contracts', 'quotas.contract_id', '=', 'contracts.id')
+            ->select('quotas.*', 'contracts.number_pagare as contract_number_pagare')
+            ->with('contract.seller')
             ->when($user->hasRole('seller'), function ($query) use ($user) {
                 return $query->whereHas('contract', function ($query) use ($user) {
                     return $query->where('seller_id', $user->id);
@@ -369,15 +369,37 @@ class PaymentController extends Controller
                 return $query->whereHas('contract', function ($query) use ($name) {
                     return $query->where('name', 'like', '%' . $name . '%');
                 });
-            })->when($request->seller_id, function ($query, $seller_id) {
+            })
+            ->when($request->seller_id, function ($query, $seller_id) {
                 return $query->whereHas('contract', function ($query) use ($seller_id) {
                     return $query->where('seller_id', $seller_id);
                 });
-            })->when($request->from_days, function ($query, $from_days) use ($date) {
-                return $query->whereRaw('DATEDIFF(?, date) >= ?', [$date, $from_days]);
-            })->when($request->to_days, function ($query, $to_days) use ($date) {
-                return $query->whereRaw('DATEDIFF(?, date) <= ?', [$date, $to_days]);
-            })->whereDate('date', '<', $date)->where('paid', 0)->paginate(20);
+            })
+            ->when($request->from_days, function ($query, $from_days) use ($date) {
+                return $query->whereRaw('DATEDIFF(?, quotas.date) >= ?', [$date, $from_days]);
+            })
+            ->when($request->to_days, function ($query, $to_days) use ($date) {
+                return $query->whereRaw('DATEDIFF(?, quotas.date) <= ?', [$date, $to_days]);
+            })
+            ->whereDate('quotas.date', '<', $date)
+            ->where('quotas.paid', 0)
+            ->orderBy('contracts.number_pagare')
+            ->orderBy('quotas.number');
+    }
+
+    public function dues(Request $request)
+    {
+        $user = auth()->user();
+        $sellers = User::seller()->active()
+            ->when($user->hasRole('credit_manager'), function ($query) use ($user) {
+                return $query->where('credit_manager_id', $user->id);
+            })
+            ->get();
+
+        $date = $request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString();
+        $referenceDate = Carbon::parse($date);
+
+        $quotas = $this->duesQuotasBaseQuery($request, $date)->paginate(20);
 
         return view('payments.dues', compact('quotas', 'sellers', 'referenceDate'));
     }
@@ -998,7 +1020,9 @@ class PaymentController extends Controller
     public function duesExcel(Request $request)
     {
         $name = "GestionDeMora_" . now()->format('d_m_Y') . ".xlsx";
-        return Excel::download(new DuesExport, $name);
+        $date = $request->date ? Carbon::parse($request->date)->toDateString() : now()->toDateString();
+
+        return Excel::download(new DuesExport($this->duesQuotasBaseQuery($request, $date), $date), $name);
     }
 
     public function deleteGroup(Request $request)

@@ -12,10 +12,10 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
 class ChargesExport implements FromCollection, WithHeadings, WithMapping, WithStyles, ShouldAutoSize
 {
-    /** @var Builder */
+    /** @var \Illuminate\Database\Eloquent\Builder|\Illuminate\Database\Query\Builder */
     protected $quotasQuery;
 
-    public function __construct(Builder $quotasQuery)
+    public function __construct($quotasQuery)
     {
         $this->quotasQuery = $quotasQuery;
     }
