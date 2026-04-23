@@ -1506,7 +1506,12 @@ class WebController extends Controller
         $admincredits = User::where('role', 'credit_manager')->active()->get();
         $sellers = User::seller()->active()->get();
 
-        $cutoff = now()->subDays(120)->toDateString();
+        // Fecha de referencia: end_date_2 si se filtra, sino hoy
+        $referenceDate = $request->end_date_2
+            ? \Carbon\Carbon::parse($request->end_date_2)->startOfDay()
+            : now()->startOfDay();
+
+        $cutoff = $referenceDate->copy()->subDays(120)->toDateString();
 
         // Total de clientes activos (con contratos no pagados y no eliminados)
         $total_clients_count = DB::table('contracts')
@@ -1519,9 +1524,6 @@ class WebController extends Controller
             })
             ->when($request->seller_id_2, function ($q, $seller_id) {
                 return $q->where('contracts.seller_id', $seller_id);
-            })
-            ->when($request->start_date_2, function ($q, $start_date) {
-                return $q->whereDate('contracts.date', '>=', $start_date);
             })
             ->when($request->end_date_2, function ($q, $end_date) {
                 return $q->whereDate('contracts.date', '<=', $end_date);
@@ -1545,18 +1547,19 @@ class WebController extends Controller
             ->when($request->seller_id_2, function ($q, $seller_id) {
                 return $q->where('contracts.seller_id', $seller_id);
             })
-            ->when($request->start_date_2, function ($q, $start_date) {
-                return $q->whereDate('contracts.date', '>=', $start_date);
-            })
             ->when($request->end_date_2, function ($q, $end_date) {
                 return $q->whereDate('contracts.date', '<=', $end_date);
             })
-            ->where(function ($q) use ($cutoff) {
-                $q->where('payments.due_days', '>=', 120)
-                    ->orWhere(function ($q2) use ($cutoff) {
-                        $q2->where('quotas.paid', 0)
-                            ->whereDate('quotas.date', '<=', $cutoff);
-                    });
+            ->where(function ($q) use ($cutoff, $referenceDate) {
+                $q->where(function ($q2) use ($cutoff, $referenceDate) {
+                    // Cuotas no pagadas con más de 120 días respecto a la fecha de referencia
+                    $q2->where('quotas.paid', 0)
+                        ->whereDate('quotas.date', '<=', $cutoff);
+                })->orWhere(function ($q2) use ($referenceDate) {
+                    // Pagos registrados con due_days >= 120 y cuya cuota venció antes de la fecha referencia
+                    $q2->where('payments.due_days', '>=', 120)
+                        ->whereDate('quotas.date', '<=', $referenceDate->toDateString());
+                });
             })
             ->where('contracts.deleted', 0)
             ->selectRaw("COUNT(DISTINCT CONCAT(COALESCE(contracts.document,''),'|',COALESCE(contracts.group_name,''))) as total")
@@ -1573,8 +1576,6 @@ class WebController extends Controller
                 return $q->whereHas('contract.seller', fn($s) => $s->where('credit_manager_id', $cm_id));
             })->when($request->seller_id_2, function ($q, $seller_id) {
                 return $q->whereHas('contract', fn($c) => $c->where('seller_id', $seller_id));
-            })->when($request->start_date_2, function ($q, $d) {
-                return $q->whereHas('contract', fn($c) => $c->whereDate('date', '>=', $d));
             })->when($request->end_date_2, function ($q, $d) {
                 return $q->whereHas('contract', fn($c) => $c->whereDate('date', '<=', $d));
             })->whereHas('contract', fn($c) => $c->where('deleted', 0))
@@ -1584,13 +1585,15 @@ class WebController extends Controller
         // Cartera bruta = toda la deuda pendiente sin filtro de tramo
         $cartera_bruta = $baseQuotaQuery()->sum('debt');
 
-        // Mora > 121 días (cuotas vencidas hace más de 121 días)
-        $cutoff_121 = now()->subDays(121)->toDateString();
-        $seller_wallet = $baseQuotaQuery()->whereDate('date', '<=', $cutoff_121)->sum('debt');
+        // Mora > 121 días (cuotas vencidas hace más de 121 días respecto a la fecha de referencia)
+        $cutoff_121 = $referenceDate->copy()->subDays(121)->toDateString();
+        $seller_wallet = $baseQuotaQuery()
+            ->whereDate('date', '<=', $cutoff_121)
+            ->sum('debt');
 
-        // Mora 1-120 días (cuotas vencidas pero con menos de 121 días)
+        // Mora 1-120 días (cuotas vencidas entre 1 y 120 días respecto a la fecha de referencia)
         $due_clients_amount = $baseQuotaQuery()
-            ->whereDate('date', '<', now()->toDateString())
+            ->whereDate('date', '<', $referenceDate->toDateString())
             ->whereDate('date', '>', $cutoff_121)
             ->sum('debt');
 

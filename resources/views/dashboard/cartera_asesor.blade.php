@@ -7,7 +7,8 @@
     @if (
             auth()->user()->hasRole('admin') ||
             auth()->user()->hasRole('admin_credit') ||
-            auth()->user()->hasRole('credit_manager')
+            auth()->user()->hasRole('credit_manager') ||
+            auth()->user()->hasRole('seller')
         )
         <div class="row mb-4" id="content-analisis">
             <div class="col-md-6">
@@ -17,7 +18,8 @@
                                 auth()->user()->hasRole('admin') ||
                                 auth()->user()->hasRole('credit') ||
                                 auth()->user()->hasRole('admin_credit') ||
-                                auth()->user()->hasRole('credit_manager')
+                                auth()->user()->hasRole('credit_manager') ||
+                                auth()->user()->hasRole('seller')
                             )
                             @if (auth()->user()->hasRole('admin_credit'))
                                 <div class="col-md-6">
@@ -43,15 +45,44 @@
                                         </select>
                                     </div>
                                 </div>
-                            @else
+                            @elseif (auth()->user()->hasRole('seller'))
+                                {{-- Seller: muestra su propio nombre fijo --}}
+                                <div class="col-md-12">
+                                    <div class="mb-3">
+                                        <label class="form-label">Asesor comercial</label>
+                                        <input type="text" class="form-control" value="{{ auth()->user()->name }}" disabled>
+                                        <input type="hidden" name="seller_id_2" value="{{ auth()->user()->id }}">
+                                    </div>
+                                </div>
+                            @elseif (auth()->user()->hasRole('credit_manager'))
+                                {{-- Jefe de crédito: muestra su propio nombre fijo + selector de asesor filtrado a sus asesores --}}
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label class="form-label">Jefe de credito</label>
+                                        <label class="form-label">Jefe de crédito</label>
+                                        <input type="text" class="form-control" value="{{ auth()->user()->name }}" disabled>
+                                        <input type="hidden" name="credit_manager_id" value="{{ auth()->user()->id }}">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Asesor comercial</label>
+                                        <select class="form-select" name="seller_id_2">
+                                            <option value="">Todos</option>
+                                            @foreach ($sellers->where('credit_manager_id', auth()->user()->id) as $seller)
+                                                <option value="{{ $seller->id }}" @if ($seller->id == request()->seller_id_2) selected @endif>{{ $seller->name }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+                                </div>
+                            @else
+                                {{-- Admin y otros: dropdowns completos --}}
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Jefe de crédito</label>
                                         <select class="form-select js-credit-manager" name="credit_manager_id">
                                             <option value="">Seleccionar</option>
                                             @foreach ($admincredits as $admincredit)
-                                                <option value="{{ $admincredit->id }}" @if ($admincredit->id == request()->credit_manager_id)
-                                                selected @endif>{{ $admincredit->name }}</option>
+                                                <option value="{{ $admincredit->id }}" @if ($admincredit->id == request()->credit_manager_id) selected @endif>{{ $admincredit->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -69,13 +100,6 @@
                                 </div>
                             @endif
                         @endif
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label class="form-label">Fecha desde</label>
-                                <input type="date" class="form-control" name="start_date_2"
-                                    value="{{ request()->start_date_2 }}">
-                            </div>
-                        </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Fecha hasta</label>
