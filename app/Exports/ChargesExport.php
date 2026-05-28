@@ -41,8 +41,13 @@ class ChargesExport implements FromCollection, WithHeadings, WithMapping, WithSt
 
     public function map($quota): array
     {
+        $client = optional($quota->contract)->client();
+        if ($quota->person_document !== null) {
+            $client = $client . ' - ' . ($quota->person_name ?? $quota->person_document ?? '');
+        }
+
         return [
-            optional($quota->contract)->client(),
+            $client,
             $quota->number,
             $quota->amount,
             $quota->debt,

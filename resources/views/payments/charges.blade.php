@@ -97,8 +97,8 @@
                             <tr>
                                 <td>{{ optional($quota->contract)->client() }}</td>
                                 <td>{{ $quota->number }}</td>
-                                <td>{{ number_format($amount, 2) }}</td>
-                                <td>{{ number_format($debt, 2) }}</td>
+                                <td>{{ number_format($quota->amount, 2) }}</td>
+                                <td>{{ number_format($quota->debt, 2) }}</td>
                                 <td>{{ $quota->date->format('d/m/Y') }}</td>
                             </tr>
                         @endforeach
