@@ -1310,6 +1310,104 @@ class WebController extends Controller
         return view('dashboard.productividad', compact('admincredits', 'sellers', 'active_clients', 'due_clients', 'total_clients_count', 'seller_wallet', 'requested_amount', 'due_quotas', 'individual_clients_count', 'group_clients_count', 'historical_mora_clients_count'));
     }
 
+    public function productividadCardDetails(Request $request)
+    {
+        $user = auth()->user();
+        $card = $request->card;
+        $allowedCards = ['individual', 'group', 'historical_mora'];
+
+        if (!in_array($card, $allowedCards, true)) {
+            return response()->json([
+                'status' => false,
+                'error' => 'Tipo de tarjeta inválido'
+            ], 422);
+        }
+
+        $creditManagerId = $request->credit_manager_id;
+        $sellerId = $request->seller_id_2;
+        $startDate = $request->start_date_2;
+        $endDate = $request->end_date_2;
+
+        $query = DB::table('contracts')
+            ->leftJoin('users', 'contracts.seller_id', '=', 'users.id')
+            ->when($user->hasRole('seller'), function ($q) {
+                return $q->where('contracts.seller_id', auth()->user()->id);
+            })
+            ->when($creditManagerId, function ($q, $cm_id) {
+                return $q->where('users.credit_manager_id', $cm_id);
+            })
+            ->when($sellerId, function ($q, $s_id) {
+                return $q->where('contracts.seller_id', $s_id);
+            })
+            ->when($startDate, function ($q, $start) {
+                return $q->whereDate('contracts.date', '>=', $start);
+            })
+            ->when($endDate, function ($q, $end) {
+                return $q->whereDate('contracts.date', '<=', $end);
+            })
+            ->where('contracts.deleted', 0);
+
+        if ($card === 'individual') {
+            $query->where('contracts.paid', 0)
+                ->where('contracts.client_type', 'Personal')
+                ->select(
+                    'contracts.id',
+                    'contracts.number_pagare',
+                    'contracts.name',
+                    'contracts.document',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name'
+                );
+        } elseif ($card === 'group') {
+            $query->where('contracts.paid', 0)
+                ->where('contracts.client_type', 'Grupo')
+                ->select(
+                    'contracts.id',
+                    'contracts.number_pagare',
+                    'contracts.group_name',
+                    'contracts.people',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name'
+                );
+        } elseif ($card === 'historical_mora') {
+            $query->where('contracts.paid', 1)
+                ->whereExists(function ($q) {
+                    $q->select(DB::raw(1))
+                        ->from('quotas')
+                        ->join('payments', 'payments.quota_id', '=', 'quotas.id')
+                        ->whereColumn('quotas.contract_id', 'contracts.id')
+                        ->where('payments.deleted', 0)
+                        ->whereBetween('payments.due_days', [1, 120]);
+                })
+                ->select(
+                    'contracts.id',
+                    'contracts.number_pagare',
+                    'contracts.name',
+                    'contracts.group_name',
+                    'contracts.client_type',
+                    'contracts.requested_amount',
+                    DB::raw("DATE_FORMAT(contracts.date, '%d/%m/%Y') as date"),
+                    'users.name as seller_name',
+                    DB::raw("(SELECT MAX(payments.due_days) 
+                              FROM quotas 
+                              JOIN payments ON payments.quota_id = quotas.id 
+                              WHERE quotas.contract_id = contracts.id 
+                                AND payments.deleted = 0 
+                                AND payments.due_days BETWEEN 1 AND 120) as max_due_days")
+                );
+        }
+
+        $items = $query->orderBy('contracts.date', 'desc')->get();
+
+        return response()->json([
+            'status' => true,
+            'card' => $card,
+            'items' => $items
+        ]);
+    }
+
     public function rentabilidadCardDetails(Request $request)
     {
         $user = auth()->user();
