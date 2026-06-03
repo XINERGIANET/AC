@@ -125,6 +125,30 @@
                     <div class="col-md-6">
                         <div class="card mb-4">
                             <div class="card-body text-center">
+                                <h5 class="card-title">Clientes individuales</h5>
+                                <span class="block fs-1 text-center fw-semibold">{{ $individual_clients_count }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Clientes grupales</h5>
+                                <span class="block fs-1 text-center fw-semibold">{{ $group_clients_count }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-12">
+                        <div class="card mb-4">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Clientes finalizados con mora (1-120 días)</h5>
+                                <span class="block fs-1 text-center fw-semibold">{{ $historical_mora_clients_count }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body text-center">
                                 <h5 class="card-title">Cartera del asesor</h5>
                                 <span class="block fs-1 text-center fw-semibold">S/{{ number_format($seller_wallet, 2) }}</span>
                             </div>

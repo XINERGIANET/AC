@@ -62,6 +62,12 @@
                             </select>
                         </div>
                     </div>
+                    <div class="col-md-3">
+                        <div class="mb-3">
+                            <label class="form-label">Número de cuota</label>
+                            <input type="number" class="form-control" name="quota_number" value="{{ request()->quota_number }}">
+                        </div>
+                    </div>
                 </div>
                 <div class="d-flex gap-2 align-items-center">
                     <button class="btn btn-primary">Filtrar</button>

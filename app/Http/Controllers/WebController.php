@@ -1231,7 +1231,83 @@ class WebController extends Controller
         })->where('paid', 0)
             ->count();
 
-        return view('dashboard.productividad', compact('admincredits', 'sellers', 'active_clients', 'due_clients', 'total_clients_count', 'seller_wallet', 'requested_amount', 'due_quotas'));
+        $individual_clients_count = DB::table('contracts')
+            ->leftJoin('users', 'contracts.seller_id', '=', 'users.id')
+            ->when($user->hasRole('seller'), function ($q) {
+                return $q->where('contracts.seller_id', auth()->user()->id);
+            })
+            ->when($request->credit_manager_id, function ($q, $cm_id) {
+                return $q->where('users.credit_manager_id', $cm_id);
+            })
+            ->when($request->seller_id_2, function ($q, $seller_id) {
+                return $q->where('contracts.seller_id', $seller_id);
+            })
+            ->when($request->start_date_2, function ($q, $start_date) {
+                return $q->whereDate('contracts.date', '>=', $start_date);
+            })
+            ->when($request->end_date_2, function ($q, $end_date) {
+                return $q->whereDate('contracts.date', '<=', $end_date);
+            })
+            ->where('contracts.deleted', 0)
+            ->where('contracts.paid', 0)
+            ->where('contracts.client_type', 'Personal')
+            ->selectRaw("COUNT(DISTINCT COALESCE(contracts.document, '')) as total")
+            ->value('total');
+
+        $group_clients_count = DB::table('contracts')
+            ->leftJoin('users', 'contracts.seller_id', '=', 'users.id')
+            ->when($user->hasRole('seller'), function ($q) {
+                return $q->where('contracts.seller_id', auth()->user()->id);
+            })
+            ->when($request->credit_manager_id, function ($q, $cm_id) {
+                return $q->where('users.credit_manager_id', $cm_id);
+            })
+            ->when($request->seller_id_2, function ($q, $seller_id) {
+                return $q->where('contracts.seller_id', $seller_id);
+            })
+            ->when($request->start_date_2, function ($q, $start_date) {
+                return $q->whereDate('contracts.date', '>=', $start_date);
+            })
+            ->when($request->end_date_2, function ($q, $end_date) {
+                return $q->whereDate('contracts.date', '<=', $end_date);
+            })
+            ->where('contracts.deleted', 0)
+            ->where('contracts.paid', 0)
+            ->where('contracts.client_type', 'Grupo')
+            ->selectRaw("COUNT(DISTINCT COALESCE(contracts.group_name, '')) as total")
+            ->value('total');
+
+        $historical_mora_clients_count = DB::table('contracts')
+            ->leftJoin('users', 'contracts.seller_id', '=', 'users.id')
+            ->when($user->hasRole('seller'), function ($q) {
+                return $q->where('contracts.seller_id', auth()->user()->id);
+            })
+            ->when($request->credit_manager_id, function ($q, $cm_id) {
+                return $q->where('users.credit_manager_id', $cm_id);
+            })
+            ->when($request->seller_id_2, function ($q, $seller_id) {
+                return $q->where('contracts.seller_id', $seller_id);
+            })
+            ->when($request->start_date_2, function ($q, $start_date) {
+                return $q->whereDate('contracts.date', '>=', $start_date);
+            })
+            ->when($request->end_date_2, function ($q, $end_date) {
+                return $q->whereDate('contracts.date', '<=', $end_date);
+            })
+            ->where('contracts.deleted', 0)
+            ->where('contracts.paid', 1)
+            ->whereExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('quotas')
+                    ->join('payments', 'payments.quota_id', '=', 'quotas.id')
+                    ->whereColumn('quotas.contract_id', 'contracts.id')
+                    ->where('payments.deleted', 0)
+                    ->whereBetween('payments.due_days', [1, 120]);
+            })
+            ->selectRaw("COUNT(DISTINCT CONCAT(COALESCE(contracts.document,''),'|',COALESCE(contracts.group_name,''))) as total")
+            ->value('total');
+
+        return view('dashboard.productividad', compact('admincredits', 'sellers', 'active_clients', 'due_clients', 'total_clients_count', 'seller_wallet', 'requested_amount', 'due_quotas', 'individual_clients_count', 'group_clients_count', 'historical_mora_clients_count'));
     }
 
     public function rentabilidadCardDetails(Request $request)
