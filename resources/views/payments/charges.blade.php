@@ -81,7 +81,7 @@
                         <th>Monto</th>
                         <th>Saldo</th>
                         <th>Fecha de pago</th>
-                        <th class="text-center">Detalles</th>
+                      
                     </tr>
                 </thead>
                 <tbody>
@@ -104,17 +104,7 @@
                                 <td>{{ number_format($quota->amount, 2) }}</td>
                                 <td>{{ number_format($quota->debt, 2) }}</td>
                                 <td>{{ $quota->date->format('d/m/Y') }}</td>
-                                <td class="text-center">
-                                    @if (optional($quota->contract)->client_type == 'Grupo')
-                                        <button type="button"
-                                            class="btn btn-primary btn-icon group-details-btn"
-                                            data-contract-id="{{ $quota->contract_id }}"
-                                            title="Ver integrantes del grupo"
-                                            aria-label="Ver integrantes del grupo">
-                                            <i class="ti ti-eye"></i>
-                                        </button>
-                                    @endif
-                                </td>
+                               
                             </tr>
                         @endforeach
                     @else
