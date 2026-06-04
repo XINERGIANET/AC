@@ -107,7 +107,7 @@
                 </form>
                 <div class="row">
                     <div class="col-md-6">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-productividad-card" data-card="active" data-title="Clientes activos" style="cursor: pointer;">
                             <div class="card-body text-center">
                                 <h5 class="card-title">Clientes activos</h5>
                                 <span class="block fs-1 text-center fw-semibold">{{ $active_clients }}</span>
@@ -115,7 +115,7 @@
                         </div>
                     </div>
                     <div class="col-md-6">
-                        <div class="card mb-4">
+                        <div class="card mb-4 js-productividad-card" data-card="due_120" data-title="Clientes con deuda (>120 días)" style="cursor: pointer;">
                             <div class="card-body text-center">
                                 <h5 class="card-title">Clientes con deuda (>120 días)</h5>
                                 <span class="block fs-1 text-center fw-semibold">{{ $due_clients }}</span>
@@ -186,6 +186,7 @@
                 <div class="modal-body">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <div class="text-muted">Registros encontrados: <span class="fw-semibold text-body" id="productividadCardTotal">0</span></div>
+                        <a href="#" id="btnExportProductividadCard" class="btn btn-success btn-sm"><i class="ti ti-file-spreadsheet icon"></i> Exportar a Excel</a>
                     </div>
                     <div class="table-responsive">
                         <table class="table card-table table-vcenter">
@@ -269,6 +270,16 @@
                 var start_date_2 = $('input[name="start_date_2"]').val();
                 var end_date_2 = $('input[name="end_date_2"]').val();
 
+                // Construir URL de exportación con los mismos filtros
+                var exportUrl = "{{ route('dashboard.productividad.card-details.export') }}?" + $.param({
+                    card: card,
+                    credit_manager_id: credit_manager_id || '',
+                    seller_id_2: seller_id_2 || '',
+                    start_date_2: start_date_2 || '',
+                    end_date_2: end_date_2 || ''
+                });
+                $('#btnExportProductividadCard').attr('href', exportUrl);
+
                 $.ajax({
                     url: "{{ route('dashboard.productividad.card-details') }}",
                     method: 'GET',
@@ -302,7 +313,69 @@
                                 .replace(/'/g, "&#039;");
                         }
 
-                        if (card === 'individual') {
+                        if (card === 'active') {
+                            head = `
+                                <tr>
+                                    <th>Pagaré</th>
+                                    <th>Cliente / Grupo</th>
+                                    <th>Tipo</th>
+                                    <th>Capital</th>
+                                    <th>Asesor</th>
+                                    <th>Fecha</th>
+                                </tr>
+                            `;
+                            if (data.items && data.items.length > 0) {
+                                data.items.forEach(function(item) {
+                                    var formattedDate = item.date || '-';
+                                    var capital = parseFloat(item.requested_amount || 0).toFixed(2);
+                                    var clientName = item.client_type === 'Grupo' ? (item.group_name || '-') : (item.name || '-');
+                                    body += `
+                                        <tr>
+                                            <td>${escapeHtml(item.number_pagare || '-')}</td>
+                                            <td>${escapeHtml(clientName)}</td>
+                                            <td><span class="badge bg-secondary text-white">${escapeHtml(item.client_type || '-')}</span></td>
+                                            <td>S/ ${capital}</td>
+                                            <td>${escapeHtml(item.seller_name || '-')}</td>
+                                            <td>${escapeHtml(formattedDate)}</td>
+                                        </tr>
+                                    `;
+                                });
+                            } else {
+                                body = '<tr><td colspan="6" class="text-center">No se encontraron registros</td></tr>';
+                            }
+                        } else if (card === 'due_120') {
+                            head = `
+                                <tr>
+                                    <th>Pagaré</th>
+                                    <th>Cliente / Grupo</th>
+                                    <th>Tipo</th>
+                                    <th>Capital</th>
+                                    <th>Asesor</th>
+                                    <th>Días de Retraso</th>
+                                    <th>Fecha</th>
+                                </tr>
+                            `;
+                            if (data.items && data.items.length > 0) {
+                                data.items.forEach(function(item) {
+                                    var formattedDate = item.date || '-';
+                                    var capital = parseFloat(item.requested_amount || 0).toFixed(2);
+                                    var clientName = item.client_type === 'Grupo' ? (item.group_name || '-') : (item.name || '-');
+                                    body += `
+                                        <tr>
+                                            <td>${escapeHtml(item.number_pagare || '-')}</td>
+                                            <td>${escapeHtml(clientName)}</td>
+                                            <td><span class="badge bg-secondary text-white">${escapeHtml(item.client_type || '-')}</span></td>
+                                            <td>S/ ${capital}</td>
+                                            <td>${escapeHtml(item.seller_name || '-')}</td>
+                                            <td><span class="text-danger fw-semibold">${escapeHtml(item.max_due_days || '0')} días</span></td>
+                                            <td>${escapeHtml(formattedDate)}</td>
+                                        </tr>
+                                    `;
+                                });
+                            } else {
+                                body = '<tr><td colspan="7" class="text-center">No se encontraron registros</td></tr>';
+                            }
+                        } else if (card === 'individual') {
                             head = `
                                 <tr>
                                     <th>Pagaré</th>
