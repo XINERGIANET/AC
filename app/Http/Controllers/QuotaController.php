@@ -235,6 +235,49 @@ class QuotaController extends Controller
         }
     }
 
+    public function payments(Quota $quota)
+    {
+        $quota->load(['contract.seller', 'payments' => function ($query) {
+            $query->active()
+                ->with('payment_method')
+                ->latest('date')
+                ->latest('id');
+        }]);
+
+        $contract = $quota->contract;
+        $payments = $quota->payments->map(function ($payment) {
+            $methodName = optional($payment->payment_method)->name ?? 'N/A';
+            if ((int) optional($payment->payment_method)->id === 1 || strtoupper($methodName) === 'EFECTIVO') {
+                $methodName = 'Retanqueo';
+            }
+
+            return [
+                'id' => $payment->id,
+                'amount' => (float) $payment->amount,
+                'date' => $payment->date ? $payment->date->format('d/m/Y') : null,
+                'due_days' => $payment->due_days,
+                'payment_method' => $methodName,
+                'image_url' => $payment->image ? asset('storage/' . $payment->image) : null,
+            ];
+        })->values();
+
+        return response()->json([
+            'quota' => [
+                'id' => $quota->id,
+                'number' => $quota->number,
+                'amount' => (float) $quota->amount,
+                'debt' => (float) $quota->debt,
+                'date' => $quota->date ? $quota->date->format('d/m/Y') : null,
+                'person_name' => $quota->person_name,
+                'person_document' => $quota->person_document,
+                'client' => $contract ? $contract->client() : 'N/A',
+                'seller_name' => optional($contract?->seller)->name,
+            ],
+            'payments' => $payments,
+            'payments_total' => round((float) $payments->sum('amount'), 2),
+        ]);
+    }
+
     private function portfolioQuotaReport(Request $request, Contract $contract)
     {
         $asOf = $request->filled('as_of')
