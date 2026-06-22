@@ -389,7 +389,7 @@ class PortfolioService
     private function quotaSnapshotQuery(string $asOf, array $filters, $user, bool $afterMilestoneOnly = true)
     {
         $milestoneDate = $this->date($asOf)->toDateString();
-        $paymentCutoffDate = $this->date($asOf)->subDay()->toDateString();
+        $paymentCutoffDate = $this->date($asOf)->toDateString();
 
         return DB::table('quotas')
             ->join('contracts', 'contracts.id', '=', 'quotas.contract_id')
