@@ -471,7 +471,7 @@ class PortfolioService
             ");
 
         return DB::query()
-            ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user), 'q')
+            ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user, false), 'q')
             ->join('contracts', 'contracts.id', '=', 'q.contract_id')
             ->leftJoin('users', 'users.id', '=', 'contracts.seller_id')
             ->leftJoinSub($clientCounts, 'client_counts', function ($join) {
@@ -512,7 +512,7 @@ class PortfolioService
     private function clientSnapshotQuery(string $asOf, array $filters, $user)
     {
         return DB::query()
-            ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user), 'q')
+            ->fromSub($this->quotaSnapshotQuery($asOf, $filters, $user, false), 'q')
             ->whereRaw('(q.amount - q.paid_to_cutoff) > 0.009')
             ->groupBy(
                 'q.contract_id',
