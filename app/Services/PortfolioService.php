@@ -491,6 +491,7 @@ class PortfolioService
                 'client_counts.client_count_over_120'
             )
             ->selectRaw("
+                contracts.id as contract_id,
                 contracts.number_pagare,
                 contracts.client_type,
                 contracts.name,

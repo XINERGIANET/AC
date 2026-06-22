@@ -48,6 +48,9 @@ class QuotaController extends Controller
             ->when($request->client_id, function ($query, $clientId) {
                 return $query->where('contract_id', $clientId);
             })
+            ->when($request->paid !== null && $request->paid !== '', function ($query) use ($request) {
+                return $query->where('paid', $request->paid);
+            })
             ->when($request->seller_id, function ($query, $seller_id) {
                 return $query->whereHas('contract', function ($q) use ($seller_id) {
                     return $q->where('seller_id', $seller_id);

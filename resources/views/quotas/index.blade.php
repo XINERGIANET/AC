@@ -72,6 +72,16 @@
                     @endif
                     <div class="col-md-2">
                         <div class="mb-2">
+                            <label class="form-label">Estado</label>
+                            <select class="form-select" name="paid">
+                                <option value="">Todos</option>
+                                <option value="0" @selected((string) request()->paid === '0')>Pendiente</option>
+                                <option value="1" @selected((string) request()->paid === '1')>Pagado</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="mb-2">
                             <label class="form-label">Inicio de cuota</label>
                             <input type="date" class="form-control" name="start_date"
                                 value="{{ request()->start_date }}">

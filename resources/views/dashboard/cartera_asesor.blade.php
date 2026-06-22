@@ -358,6 +358,15 @@
                 return 'S/' + parseFloat(value || 0).toFixed(2);
             }
 
+            function quotaDetailUrl(item) {
+                var params = new URLSearchParams({
+                    client_id: item.contract_id || '',
+                    paid: '0'
+                });
+
+                return "{{ route('quotas.index') }}" + '?' + params.toString();
+            }
+
             function clientName(item) {
                 return item.client_type === 'Grupo'
                     ? (item.group_name || '-')
@@ -433,6 +442,7 @@
                         <th>Mora 1-120</th>
                         <th>Mora >120</th>
                         <th>Cuotas pendientes</th>
+                        <th>Accion</th>
                     </tr>
                 `);
 
@@ -450,11 +460,16 @@
                             <td>${money(item.arrears_1_120)}</td>
                             <td>${money(item.arrears_over_120)}</td>
                             <td>${escapeHtml(item.pending_quotas_count || 0)}</td>
+                            <td>
+                                <a class="btn btn-sm btn-primary" href="${escapeHtml(quotaDetailUrl(item))}" target="_blank" rel="noopener noreferrer">
+                                    Ver
+                                </a>
+                            </td>
                         </tr>
                     `;
                 }).join('');
 
-                $('#portfolioCardTableBody').html(rows || emptyRow(11));
+                $('#portfolioCardTableBody').html(rows || emptyRow(12));
             }
 
             function renderContracts(items) {
