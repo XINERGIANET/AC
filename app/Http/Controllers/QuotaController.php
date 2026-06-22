@@ -143,6 +143,10 @@ class QuotaController extends Controller
 
     public function api(Request $request){
         $contract = Contract::findOrFail($request->contract_id);
+        if ($request->input('detail_mode') === 'portfolio') {
+            return $this->portfolioQuotaReport($request, $contract);
+        }
+
         $asOf = $request->filled('as_of')
             ? Carbon::parse($request->as_of)->toDateString()
             : null;
@@ -229,5 +233,195 @@ class QuotaController extends Controller
                 'quotas' => $quotas
             ]);
         }
+    }
+
+    private function portfolioQuotaReport(Request $request, Contract $contract)
+    {
+        $asOf = $request->filled('as_of')
+            ? Carbon::parse($request->as_of)->toDateString()
+            : null;
+
+        $quotas = Quota::where('contract_id', $contract->id)
+            ->with(['payments' => function ($query) use ($asOf) {
+                $query->active()
+                    ->when($asOf, fn($q) => $q->whereDate('date', '<=', $asOf))
+                    ->with('payment_method')
+                    ->orderBy('date', 'asc')
+                    ->orderBy('id', 'asc');
+            }])
+            ->orderBy('number', 'asc')
+            ->orderBy('person_name', 'asc')
+            ->get();
+
+        $quotaRows = [];
+        $memberSummary = [];
+        $paymentsHistory = [];
+
+        foreach ($quotas as $quota) {
+            $paidToCutoff = round((float) $quota->payments->sum('amount'), 2);
+            $debt = round(max((float) $quota->amount - $paidToCutoff, 0), 2);
+            $memberKey = trim(($quota->person_document ?? '') . '|' . ($quota->person_name ?? ''));
+            $memberLabel = trim($quota->person_name ?: ($contract->name ?: $contract->group_name ?: 'Sin nombre'));
+            $memberDocument = $quota->person_document;
+
+            if (!isset($memberSummary[$memberKey])) {
+                $memberSummary[$memberKey] = [
+                    'document' => $memberDocument,
+                    'name' => $memberLabel,
+                    'total_amount' => 0,
+                    'paid_total' => 0,
+                    'debt_total' => 0,
+                    'paid_quotas' => [],
+                    'pending_quotas' => [],
+                ];
+            }
+
+            $memberSummary[$memberKey]['total_amount'] += (float) $quota->amount;
+            $memberSummary[$memberKey]['paid_total'] += $paidToCutoff;
+            $memberSummary[$memberKey]['debt_total'] += $debt;
+
+            if ($debt > 0.009) {
+                $memberSummary[$memberKey]['pending_quotas'][] = $quota->number;
+            } else {
+                $memberSummary[$memberKey]['paid_quotas'][] = $quota->number;
+            }
+
+            $paymentRows = [];
+            foreach ($quota->payments as $payment) {
+                $methodName = optional($payment->payment_method)->name ?? 'N/A';
+                if ((int) optional($payment->payment_method)->id === 1 || strtoupper($methodName) === 'EFECTIVO') {
+                    $methodName = 'Retanqueo';
+                }
+
+                $paymentItem = [
+                    'id' => $payment->id,
+                    'quota_id' => $quota->id,
+                    'quota_number' => $quota->number,
+                    'member_name' => $memberLabel,
+                    'member_document' => $memberDocument,
+                    'amount' => (float) $payment->amount,
+                    'date' => $payment->date ? $payment->date->format('d/m/Y') : null,
+                    'due_days' => $payment->due_days,
+                    'payment_method' => $methodName,
+                    'image_url' => $payment->image ? asset('storage/' . $payment->image) : null,
+                ];
+
+                $paymentRows[] = $paymentItem;
+                $paymentsHistory[] = $paymentItem;
+            }
+
+            $quotaRows[] = [
+                'quota_id' => $quota->id,
+                'number' => $quota->number,
+                'date' => $quota->date ? $quota->date->format('d/m/Y') : null,
+                'member_name' => $memberLabel,
+                'member_document' => $memberDocument,
+                'amount' => (float) $quota->amount,
+                'paid_total' => $paidToCutoff,
+                'debt' => $debt,
+                'status' => $debt > 0.009 ? 'Pendiente' : 'Pagado',
+                'payments' => $paymentRows,
+            ];
+        }
+
+        if ($contract->client_type === 'Grupo') {
+            $quotaRows = collect($quotaRows)
+                ->groupBy('number')
+                ->map(function ($group) {
+                    $first = $group->first();
+
+                    return [
+                        'number' => $first['number'],
+                        'date' => $first['date'],
+                        'amount' => round((float) collect($group)->sum('amount'), 2),
+                        'paid_total' => round((float) collect($group)->sum('paid_total'), 2),
+                        'debt' => round((float) collect($group)->sum('debt'), 2),
+                        'status' => collect($group)->sum('debt') > 0.009 ? 'Pendiente' : 'Pagado',
+                        'members' => collect($group)->map(function ($item) {
+                            return [
+                                'name' => $item['member_name'],
+                                'document' => $item['member_document'],
+                                'amount' => $item['amount'],
+                                'paid_total' => $item['paid_total'],
+                                'debt' => $item['debt'],
+                                'status' => $item['status'],
+                                'payments' => $item['payments'],
+                            ];
+                        })->values()->all(),
+                        'payments' => collect($group)->flatMap(fn($item) => $item['payments'])->sortByDesc(function ($payment) {
+                            return Carbon::createFromFormat('d/m/Y', $payment['date'] ?? now()->format('d/m/Y'))->timestamp;
+                        })->values()->all(),
+                    ];
+                })
+                ->values()
+                ->all();
+        } else {
+            $quotaRows = collect($quotaRows)->map(function ($item) {
+                return [
+                    'number' => $item['number'],
+                    'date' => $item['date'],
+                    'amount' => $item['amount'],
+                    'paid_total' => $item['paid_total'],
+                    'debt' => $item['debt'],
+                    'status' => $item['status'],
+                    'members' => [[
+                        'name' => $item['member_name'],
+                        'document' => $item['member_document'],
+                        'amount' => $item['amount'],
+                        'paid_total' => $item['paid_total'],
+                        'debt' => $item['debt'],
+                        'status' => $item['status'],
+                        'payments' => $item['payments'],
+                    ]],
+                    'payments' => $item['payments'],
+                ];
+            })->values()->all();
+        }
+
+        $memberSummary = collect($memberSummary)
+            ->map(function ($member) {
+                $member['total_amount'] = round((float) $member['total_amount'], 2);
+                $member['paid_total'] = round((float) $member['paid_total'], 2);
+                $member['debt_total'] = round((float) $member['debt_total'], 2);
+                $member['paid_quotas'] = array_values(array_unique($member['paid_quotas']));
+                $member['pending_quotas'] = array_values(array_unique($member['pending_quotas']));
+                return $member;
+            })
+            ->sortBy('name')
+            ->values()
+            ->all();
+
+        $paymentsHistory = collect($paymentsHistory)
+            ->sortByDesc(function ($payment) {
+                return Carbon::createFromFormat('d/m/Y', $payment['date'] ?? now()->format('d/m/Y'))->timestamp;
+            })
+            ->values()
+            ->all();
+
+        $summary = [
+            'quotas_total' => round((float) $quotas->sum('amount'), 2),
+            'paid_total' => round((float) collect($quotaRows)->sum('paid_total'), 2),
+            'debt_total' => round((float) collect($quotaRows)->sum('debt'), 2),
+            'quotas_count' => count($quotaRows),
+            'paid_quotas_count' => collect($quotaRows)->filter(fn($quota) => (float) $quota['debt'] <= 0.009)->count(),
+            'pending_quotas_count' => collect($quotaRows)->filter(fn($quota) => (float) $quota['debt'] > 0.009)->count(),
+            'members_count' => count($memberSummary),
+            'payments_count' => count($paymentsHistory),
+            'as_of' => $asOf,
+        ];
+
+        return response()->json([
+            'contract' => [
+                'id' => $contract->id,
+                'client_type' => $contract->client_type,
+                'name' => $contract->name,
+                'group_name' => $contract->group_name,
+                'number_pagare' => $contract->number_pagare,
+            ],
+            'summary' => $summary,
+            'quotas' => $quotaRows,
+            'members' => $memberSummary,
+            'payments' => $paymentsHistory,
+        ]);
     }
 }
