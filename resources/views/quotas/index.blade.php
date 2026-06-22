@@ -214,6 +214,64 @@
             </div>
         </div>
     </div>
+
+    <div class="modal modal-blur fade" id="quotaPaymentHistoryModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Historial de pagos de cuota</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="text-muted small">ID cuota</div>
+                            <div id="quotaHistoryId" class="fw-semibold"></div>
+                        </div>
+                        <div class="col-md-5">
+                            <div class="text-muted small">Cliente</div>
+                            <div id="quotaHistoryClient" class="fw-semibold"></div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-muted small">Cuota</div>
+                            <div id="quotaHistoryQuota" class="fw-semibold"></div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-muted small">Saldo</div>
+                            <div id="quotaHistoryDebt" class="fw-semibold"></div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="text-muted small">Persona</div>
+                            <div id="quotaHistoryPerson" class="fw-semibold"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted small">Monto cuota</div>
+                            <div id="quotaHistoryAmount" class="fw-semibold"></div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-muted small">Total pagado</div>
+                            <div id="quotaHistoryPaidTotal" class="fw-semibold text-success"></div>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-striped align-middle">
+                            <thead>
+                                <tr>
+                                    <th>ID pago</th>
+                                    <th>Monto</th>
+                                    <th>Fecha</th>
+                                    <th>Metodo</th>
+                                    <th>Dias mora</th>
+                                    <th>Comprobante</th>
+                                </tr>
+                            </thead>
+                            <tbody id="quotaHistoryTableBody"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 @endsection
 
 @section('scripts')
@@ -293,25 +351,25 @@
 
             $(document).on('click', '.js-view-payment-history', function() {
                 var url = $(this).data('url');
-                $('#quotaPaymentTableBody').html('<tr><td colspan="6" class="text-center">Cargando...</td></tr>');
-                $('#quotaPaymentModal').modal('show');
+                $('#quotaHistoryTableBody').html('<tr><td colspan="6" class="text-center">Cargando...</td></tr>');
+                $('#quotaPaymentHistoryModal').modal('show');
 
                 $.ajax({
                     url: url,
                     method: 'GET',
                     success: function(data) {
                         var quota = data.quota || {};
-                        $('#quotaPaymentId').text(quota.id || '');
-                        $('#quotaPaymentClient').text(quota.client || '');
-                        $('#quotaPaymentQuota').text(quota.number || '');
-                        $('#quotaPaymentPerson').text(quota.person_name || quota.person_document || '-');
-                        $('#quotaPaymentAmount').text(money(quota.amount));
-                        $('#quotaPaymentDebt').text(money(quota.debt));
-                        $('#quotaPaymentPaidTotal').text(money(data.payments_total));
-                        $('#quotaPaymentTableBody').html(paymentRows(data.payments || []));
+                        $('#quotaHistoryId').text(quota.id || '');
+                        $('#quotaHistoryClient').text(quota.client || '');
+                        $('#quotaHistoryQuota').text(quota.number || '');
+                        $('#quotaHistoryPerson').text(quota.person_name || quota.person_document || '-');
+                        $('#quotaHistoryAmount').text(money(quota.amount));
+                        $('#quotaHistoryDebt').text(money(quota.debt));
+                        $('#quotaHistoryPaidTotal').text(money(data.payments_total));
+                        $('#quotaHistoryTableBody').html(paymentRows(data.payments || []));
                     },
                     error: function() {
-                        $('#quotaPaymentTableBody').html('<tr><td colspan="6" class="text-center">No se pudo cargar el historial de pagos</td></tr>');
+                        $('#quotaHistoryTableBody').html('<tr><td colspan="6" class="text-center">No se pudo cargar el historial de pagos</td></tr>');
                     }
                 });
             });
