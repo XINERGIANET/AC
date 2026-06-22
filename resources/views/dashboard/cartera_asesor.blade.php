@@ -335,6 +335,28 @@
                 </div>
             </div>
         </div>
+
+        <div class="modal fade" id="portfolioQuotaModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-scrollable">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <div>
+                            <h5 class="modal-title" id="portfolioQuotaModalTitle">Cuotas pendientes</h5>
+                            <div class="text-muted small" id="portfolioQuotaModalSubtitle"></div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped align-middle">
+                                <thead id="portfolioQuotaTableHead"></thead>
+                                <tbody id="portfolioQuotaTableBody"></tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     @endif
 
 @endsection
@@ -358,15 +380,6 @@
                 return 'S/' + parseFloat(value || 0).toFixed(2);
             }
 
-            function quotaDetailUrl(item) {
-                var params = new URLSearchParams({
-                    client_id: item.contract_id || '',
-                    paid: '0'
-                });
-
-                return "{{ route('quotas.index') }}" + '?' + params.toString();
-            }
-
             function clientName(item) {
                 return item.client_type === 'Grupo'
                     ? (item.group_name || '-')
@@ -388,6 +401,106 @@
 
             function emptyRow(cols) {
                 return `<tr><td colspan="${cols}" class="text-center">No se encontraron registros</td></tr>`;
+            }
+
+            function setQuotaLoading() {
+                $('#portfolioQuotaTableHead').html('');
+                $('#portfolioQuotaTableBody').html(`
+                    <tr>
+                        <td class="text-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Cargando...</span>
+                            </div>
+                        </td>
+                    </tr>
+                `);
+            }
+
+            function renderPendingQuotas(data) {
+                var contract = data.contract || {};
+                var items = data.quotas || [];
+
+                $('#portfolioQuotaModalTitle').text('Cuotas pendientes');
+                $('#portfolioQuotaModalSubtitle').text(clientName(contract));
+
+                if (contract.client_type === 'Grupo') {
+                    $('#portfolioQuotaTableHead').html(`
+                        <tr>
+                            <th>Cuota</th>
+                            <th>Fecha</th>
+                            <th>Monto</th>
+                            <th>Saldo</th>
+                            <th>Integrantes pendientes</th>
+                        </tr>
+                    `);
+
+                    var groupRows = items.map(function(item) {
+                        var members = (item.people || []).map(function(person) {
+                            return `${escapeHtml(person.name || '-')}: ${money(person.debt)}`;
+                        }).join('<br>');
+
+                        return `
+                            <tr>
+                                <td>${escapeHtml(item.number || '-')}</td>
+                                <td>${escapeHtml(item.date || '-')}</td>
+                                <td>${money(item.amount)}</td>
+                                <td>${money(item.debt)}</td>
+                                <td>${members || '-'}</td>
+                            </tr>
+                        `;
+                    }).join('');
+
+                    $('#portfolioQuotaTableBody').html(groupRows || emptyRow(5));
+                    return;
+                }
+
+                $('#portfolioQuotaTableHead').html(`
+                    <tr>
+                        <th>Cuota</th>
+                        <th>Fecha</th>
+                        <th>Monto</th>
+                        <th>Saldo</th>
+                    </tr>
+                `);
+
+                var rows = items.map(function(item) {
+                    return `
+                        <tr>
+                            <td>${escapeHtml(item.number || '-')}</td>
+                            <td>${escapeHtml(item.date || '-')}</td>
+                            <td>${money(item.amount)}</td>
+                            <td>${money(item.debt)}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                $('#portfolioQuotaTableBody').html(rows || emptyRow(4));
+            }
+
+            function openPendingQuotas(contractId, clientLabel) {
+                if (!contractId) {
+                    return;
+                }
+
+                $('#portfolioQuotaModalTitle').text('Cuotas pendientes');
+                $('#portfolioQuotaModalSubtitle').text(clientLabel || '');
+                setQuotaLoading();
+                $('#portfolioQuotaModal').modal('show');
+
+                $.ajax({
+                    url: "{{ route('quotas.api') }}",
+                    method: 'GET',
+                    data: {
+                        contract_id: contractId,
+                        as_of: $('[name="end_date_2"]').val() || ''
+                    },
+                    success: function(data) {
+                        renderPendingQuotas(data || {});
+                    },
+                    error: function() {
+                        $('#portfolioQuotaTableBody').html('<tr><td colspan="5" class="text-center">No se pudo cargar el detalle</td></tr>');
+                    }
+                });
             }
 
             function renderQuotas(items) {
@@ -461,9 +574,13 @@
                             <td>${money(item.arrears_over_120)}</td>
                             <td>${escapeHtml(item.pending_quotas_count || 0)}</td>
                             <td>
-                                <a class="btn btn-sm btn-primary" href="${escapeHtml(quotaDetailUrl(item))}" target="_blank" rel="noopener noreferrer">
+                                <button
+                                    type="button"
+                                    class="btn btn-sm btn-primary js-view-pending-quotas"
+                                    data-contract-id="${escapeHtml(item.contract_id || '')}"
+                                    data-client-label="${escapeHtml(clientName(item))}">
                                     Ver
-                                </a>
+                                </button>
                             </td>
                         </tr>
                     `;
@@ -604,6 +721,10 @@
                     e.preventDefault();
                     $(this).trigger('click');
                 }
+            });
+
+            $(document).on('click', '.js-view-pending-quotas', function() {
+                openPendingQuotas($(this).data('contract-id'), $(this).data('client-label'));
             });
         })();
     </script>

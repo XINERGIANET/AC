@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\QuotasExport;
 use App\Models\Contract;
@@ -142,10 +143,47 @@ class QuotaController extends Controller
 
     public function api(Request $request){
         $contract = Contract::findOrFail($request->contract_id);
-        $quotas = Quota::where('contract_id', $request->contract_id)
-            ->where('paid', 0)
-            ->orderBy('number', 'asc')
-            ->get();
+
+        if ($request->filled('as_of')) {
+            $asOf = Carbon::parse($request->as_of)->toDateString();
+
+            $quotas = DB::table('quotas')
+                ->leftJoin('payments', function ($join) use ($asOf) {
+                    $join->on('payments.quota_id', '=', 'quotas.id')
+                        ->where('payments.deleted', 0)
+                        ->whereDate('payments.date', '<=', $asOf);
+                })
+                ->where('quotas.contract_id', $request->contract_id)
+                ->groupBy(
+                    'quotas.id',
+                    'quotas.number',
+                    'quotas.date',
+                    'quotas.amount',
+                    'quotas.person_document',
+                    'quotas.person_name'
+                )
+                ->selectRaw("
+                    quotas.id,
+                    quotas.number,
+                    quotas.date,
+                    quotas.amount,
+                    quotas.person_document,
+                    quotas.person_name,
+                    GREATEST(quotas.amount - COALESCE(SUM(payments.amount), 0), 0) as debt
+                ")
+                ->havingRaw('GREATEST(quotas.amount - COALESCE(SUM(payments.amount), 0), 0) > 0.009')
+                ->orderBy('quotas.number', 'asc')
+                ->get()
+                ->map(function ($quota) {
+                    $quota->date = $quota->date ? Carbon::parse($quota->date) : null;
+                    return $quota;
+                });
+        } else {
+            $quotas = Quota::where('contract_id', $request->contract_id)
+                ->where('paid', 0)
+                ->orderBy('number', 'asc')
+                ->get();
+        }
         
         if ($contract->client_type == 'Grupo') {
             // Agrupar cuotas por número para grupos
