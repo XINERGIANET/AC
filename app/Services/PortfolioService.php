@@ -175,12 +175,18 @@ class PortfolioService
                 $query->havingRaw("SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) > 0.009", [$asOf]);
             }
 
-            $items = $query->get();
+            $items = $query->get()->map(function ($item) use ($card) {
+                $item->client_count = (int) ($card === 'clients_over_120'
+                    ? ($item->client_count_over_120 ?? 0)
+                    : ($item->client_count ?? 0));
+
+                return $item;
+            });
 
             return [
                 'status' => true,
                 'type' => 'clients',
-                'total' => $items->count(),
+                'total' => (int) $items->sum('client_count'),
                 'items' => $items,
             ];
         }
@@ -244,11 +250,19 @@ class PortfolioService
                 COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as arrears_over_120_post_hito,
                 COALESCE(SUM(CASE WHEN DATEDIFF(?, q.quota_date) <= 0 THEN q.amount - q.paid_to_cutoff ELSE 0 END), 0) as current_installments,
                 COUNT(DISTINCT CONCAT(q.contract_id, '|', q.quota_number)) as pending_quotas_count,
-                COUNT(DISTINCT q.contract_id) as active_clients,
-                COUNT(DISTINCT CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.contract_id END) as clients_over_120,
+                COUNT(DISTINCT CASE
+                    WHEN q.client_type = 'Personal' THEN CONCAT('P|', q.contract_id)
+                    ELSE CONCAT('G|', q.contract_id, '|', COALESCE(NULLIF(TRIM(q.person_document), ''), NULLIF(TRIM(q.person_name), ''), 'SIN_PERSONA'))
+                END) as active_clients,
+                COUNT(DISTINCT CASE
+                    WHEN DATEDIFF(?, q.quota_date) > 120 AND q.client_type = 'Personal' THEN CONCAT('P|', q.contract_id)
+                    WHEN DATEDIFF(?, q.quota_date) > 120 THEN CONCAT('G|', q.contract_id, '|', COALESCE(NULLIF(TRIM(q.person_document), ''), NULLIF(TRIM(q.person_name), ''), 'SIN_PERSONA'))
+                END) as clients_over_120,
                 COUNT(DISTINCT CASE WHEN q.client_type = 'Personal' THEN q.contract_id END) as individual_clients,
-                COUNT(DISTINCT CASE WHEN q.client_type = 'Grupo' THEN q.contract_id END) as group_clients
-            ", [$asOf, $asOf, $asOf])
+                COUNT(DISTINCT CASE
+                    WHEN q.client_type = 'Grupo' THEN CONCAT(q.contract_id, '|', COALESCE(NULLIF(TRIM(q.person_document), ''), NULLIF(TRIM(q.person_name), ''), 'SIN_PERSONA'))
+                END) as group_clients
+            ", [$asOf, $asOf, $asOf, $asOf])
             ->first();
 
         $disbursed = $this->contractsQuery($asOf, $filters, $user)
@@ -472,8 +486,16 @@ class PortfolioService
                 SUM(q.amount - q.paid_to_cutoff) as balance,
                 SUM(CASE WHEN DATEDIFF(?, q.quota_date) BETWEEN 1 AND 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) as arrears_1_120,
                 SUM(CASE WHEN DATEDIFF(?, q.quota_date) > 120 THEN q.amount - q.paid_to_cutoff ELSE 0 END) as arrears_over_120,
-                COUNT(DISTINCT q.quota_number) as pending_quotas_count
-            ", [$asOf, $asOf])
+                COUNT(DISTINCT q.quota_number) as pending_quotas_count,
+                COUNT(DISTINCT CASE
+                    WHEN contracts.client_type = 'Personal' THEN CONCAT('P|', contracts.id)
+                    ELSE CONCAT('G|', contracts.id, '|', COALESCE(NULLIF(TRIM(q.person_document), ''), NULLIF(TRIM(q.person_name), ''), 'SIN_PERSONA'))
+                END) as client_count,
+                COUNT(DISTINCT CASE
+                    WHEN DATEDIFF(?, q.quota_date) > 120 AND contracts.client_type = 'Personal' THEN CONCAT('P|', contracts.id)
+                    WHEN DATEDIFF(?, q.quota_date) > 120 THEN CONCAT('G|', contracts.id, '|', COALESCE(NULLIF(TRIM(q.person_document), ''), NULLIF(TRIM(q.person_name), ''), 'SIN_PERSONA'))
+                END) as client_count_over_120
+            ", [$asOf, $asOf, $asOf, $asOf])
             ->orderByDesc('contracts.date');
     }
 

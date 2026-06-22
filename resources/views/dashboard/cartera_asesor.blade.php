@@ -425,6 +425,7 @@
                         <th>Pagare</th>
                         <th>Cliente / Grupo</th>
                         <th>Tipo</th>
+                        <th>Clientes</th>
                         <th>Asesor</th>
                         <th>Fecha contrato</th>
                         <th>Capital</th>
@@ -441,6 +442,7 @@
                             <td>${escapeHtml(item.number_pagare || '-')}</td>
                             <td>${escapeHtml(clientName(item))}</td>
                             <td>${escapeHtml(item.client_type || '-')}</td>
+                            <td>${escapeHtml(item.client_count || 0)}</td>
                             <td>${escapeHtml(item.seller_name || '-')}</td>
                             <td>${escapeHtml(item.date || '-')}</td>
                             <td>${money(item.requested_amount)}</td>
@@ -452,7 +454,7 @@
                     `;
                 }).join('');
 
-                $('#portfolioCardTableBody').html(rows || emptyRow(10));
+                $('#portfolioCardTableBody').html(rows || emptyRow(11));
             }
 
             function renderContracts(items) {
