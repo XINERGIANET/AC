@@ -2225,14 +2225,10 @@ class WebController extends Controller
     {
         $payments = Payment::active()
             ->when($request->start_date_1, function ($query, $startDate) {
-                return $query->whereHas('quota', function ($q) use ($startDate) {
-                    return $q->whereDate('date', '>=', $startDate);
-                });
+                return $query->whereDate('date', '>=', $startDate);
             })
             ->when($request->end_date_1, function ($query, $endDate) {
-                return $query->whereHas('quota', function ($q) use ($endDate) {
-                    return $q->whereDate('date', '<=', $endDate);
-                });
+                return $query->whereDate('date', '<=', $endDate);
             })
             ->whereHas('quota', function ($q) {
                 return $q->where('paid', 1);
