@@ -508,6 +508,19 @@ class PaymentController extends Controller
                 ]);
             }
 
+            $previousUnpaid = Quota::where('contract_id', $quota->contract_id)
+                ->where('number', '<', $quota->number)
+                ->where('paid', 0)
+                ->orderBy('number', 'asc')
+                ->first();
+
+            if ($previousUnpaid) {
+                return response()->json([
+                    'status' => false,
+                    'error' => "Debe pagar primero la cuota anterior (Cuota N° {$previousUnpaid->number})."
+                ]);
+            }
+
             if ($paymentData['amount'] > $quota->debt) {
                 return response()->json([
                     'status' => false,
@@ -617,6 +630,21 @@ class PaymentController extends Controller
             ]);
         }
 
+        if ($quota) {
+            $previousUnpaid = Quota::where('contract_id', $quota->contract_id)
+                ->where('number', '<', $quota->number)
+                ->where('paid', 0)
+                ->orderBy('number', 'asc')
+                ->first();
+
+            if ($previousUnpaid) {
+                return response()->json([
+                    'status' => false,
+                    'error' => "Debe pagar primero la cuota anterior (Cuota N° {$previousUnpaid->number})."
+                ]);
+            }
+        }
+
         DB::beginTransaction();
 
         try {
@@ -711,6 +739,21 @@ class PaymentController extends Controller
                 'status' => false,
                 'error' => $validator->errors()->first()
             ]);
+        }
+
+        if ($quota) {
+            $previousUnpaid = Quota::where('contract_id', $quota->contract_id)
+                ->where('number', '<', $quota->number)
+                ->where('paid', 0)
+                ->orderBy('number', 'asc')
+                ->first();
+
+            if ($previousUnpaid) {
+                return response()->json([
+                    'status' => false,
+                    'error' => "Debe pagar primero la cuota anterior (Cuota N° {$previousUnpaid->number})."
+                ]);
+            }
         }
 
         DB::beginTransaction();
