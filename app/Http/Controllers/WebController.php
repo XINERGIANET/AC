@@ -2205,6 +2205,7 @@ class WebController extends Controller
                     'person_name' => $quota ? $quota->person_name : null,
                     'amount' => $group->sum('amount'),
                     'quota_amount' => $quotaAmounts->get(($contract->id ?? 'none') . '_' . ($quota->number ?? 'none'))->total ?? 0,
+                    'pending_amount' => max(0, ($quotaAmounts->get(($contract->id ?? 'none') . '_' . ($quota->number ?? 'none'))->total ?? 0) - $group->sum('amount')),
                     'payment_method' => implode(' / ', $methods),
                     'quota_date' => $quota && $quota->date ? $quota->date->format('d/m/Y') : null,
                     'payment_date' => $paymentDate ? $paymentDate->format('d/m/Y') : null,
@@ -2301,6 +2302,22 @@ class WebController extends Controller
             return ($clientKey ?: 'none') . '|' . ($quota->number ?? 'none');
         });
 
+        $quotaContractIds = $groupedQuotaPayments
+            ->concat($groupedLatePayments)
+            ->flatMap(fn($group) => $group)
+            ->map(fn($payment) => optional($payment->quota)->contract_id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        $quotaTotals = $quotaContractIds->isEmpty()
+            ? collect()
+            : Quota::whereIn('contract_id', $quotaContractIds)
+                ->select('contract_id', 'number', DB::raw('SUM(amount) as total'))
+                ->groupBy('contract_id', 'number')
+                ->get()
+                ->keyBy(fn($quota) => $quota->contract_id . '_' . $quota->number);
+
         $byStatus = [
             'advance' => collect(),
             'timely' => collect(),
@@ -2315,6 +2332,13 @@ class WebController extends Controller
             $paymentDate = $paymentsGroup->max('date');
 
             if (!$quota || !$quota->date || !$paymentDate) {
+                continue;
+            }
+
+            $totalQuotaAmount = $quotaTotals->get(($contract->id ?? 'none') . '_' . ($quota->number ?? 'none'))->total ?? 0;
+            $paidAmount = $paymentsGroup->sum('amount');
+            $pendingAmount = max(0, $totalQuotaAmount - $paidAmount);
+            if ($pendingAmount > 0.01) {
                 continue;
             }
 
@@ -2337,9 +2361,17 @@ class WebController extends Controller
         foreach ($groupedLatePayments as $key => $paymentsGroup) {
             $first = $paymentsGroup->first();
             $quota = $first ? $first->quota : null;
+            $contract = $quota ? $quota->contract : null;
             $paymentDate = $paymentsGroup->max('date');
 
             if (!$quota || !$quota->date || !$paymentDate) {
+                continue;
+            }
+
+            $totalQuotaAmount = $quotaTotals->get(($contract->id ?? 'none') . '_' . ($quota->number ?? 'none'))->total ?? 0;
+            $paidAmount = $paymentsGroup->sum('amount');
+            $pendingAmount = max(0, $totalQuotaAmount - $paidAmount);
+            if ($pendingAmount > 0.01) {
                 continue;
             }
 
@@ -2412,6 +2444,7 @@ class WebController extends Controller
                     'due_days' => $dueDays,
                 ];
             })
+            ->filter(fn($item) => $item['pending_amount'] <= 0.01)
             ->values();
     }
 
