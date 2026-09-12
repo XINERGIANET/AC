@@ -577,7 +577,6 @@
                         detectGroupType(data.quotas);
                         
                         var firstAvailableIndex = -1;
-
                         data.quotas.forEach(function(quota, index) {
                             var amount = formatMoney(quota.amount);
                             var debt = formatMoney(quota.debt);
@@ -619,9 +618,9 @@
                         data.quotas.forEach(function(quota, index) {
                             var amount = formatMoney(quota.amount);
                             var debt = formatMoney(quota.debt);
-                            var disabled = index > 0 ? 'disabled' : '';
-                            var legend = index > 0 ? ' (Bloqueada: Pagar cuota anterior)' : '';
-                            html += `<option value="${quota.id}" ${disabled}>Cuota ${quota.number} - Monto ${amount} - Saldo: ${debt} - Fecha: ${quota.date}${legend}</option>`;
+                            var isDisabled = index > 0 ? 'disabled' : '';
+                            var labelSuffix = index > 0 ? ' (Bloqueada: Pagar cuota anterior)' : '';
+                            html += `<option value="${quota.id}" ${isDisabled}>Cuota ${quota.number} - Monto ${amount} - Saldo: ${debt} - Fecha: ${quota.date}${labelSuffix}</option>`;
                         });
                         
                         $('#quota_id').html(html);

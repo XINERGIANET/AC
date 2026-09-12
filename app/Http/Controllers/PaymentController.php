@@ -626,6 +626,8 @@ class PaymentController extends Controller
                 if ($request->amount > $quota->debt) {
                     $validator->errors()->add('amount', 'El pago debe ser menor o igual al saldo pendiente');
                 }
+
+
             } else {
                 $validator->errors()->add('quota_id', 'La cuota no se encuentra');
             }
@@ -723,6 +725,16 @@ class PaymentController extends Controller
             if ($quota) {
                 if ($request->amount > $quota->debt) {
                     $validator->errors()->add('amount', 'El pago debe ser menor o igual al saldo pendiente');
+                }
+
+                $previousUnpaid = Quota::where('contract_id', $quota->contract_id)
+                    ->where('number', '<', $quota->number)
+                    ->where('paid', 0)
+                    ->orderBy('number', 'asc')
+                    ->first();
+
+                if ($previousUnpaid) {
+                    $validator->errors()->add('quota_id', "Debe pagar primero la cuota anterior (Cuota N° {$previousUnpaid->number}).");
                 }
             } else {
                 $validator->errors()->add('quota_id', 'La cuota no se encuentra');
